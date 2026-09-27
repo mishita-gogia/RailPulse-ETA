@@ -12,10 +12,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from app.config import settings
 from app.database.db import init_db
+from app.database.mongo import connect_to_mongo, close_mongo_connection
 from app.database.seed import seed_db
 from app.simulation.engine import simulation_engine
 from app.services.eta_service import eta_service
-from app.api import trains, simulation, network, alerts, analytics, websocket
+from app.api import trains, simulation, network, alerts, analytics, websocket, auth
 
 
 @asynccontextmanager
@@ -30,6 +31,10 @@ async def lifespan(app: FastAPI):
     # Initialize database
     await init_db()
     print("[Startup] Database initialized.")
+
+    # Initialize auth-only MongoDB. Fail loudly if it is not configured.
+    await connect_to_mongo()
+    print("[Startup] Auth MongoDB initialized.")
 
     # Load seed data
     await seed_db()
@@ -51,7 +56,9 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await simulation_engine.stop()
+    await close_mongo_connection()
     print("[Shutdown] Simulation engine stopped.")
+    print("[Shutdown] Auth MongoDB connection closed.")
 
 
 app = FastAPI(
@@ -78,6 +85,7 @@ app.include_router(network.router, prefix="/api/network", tags=["Network"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 
 @app.get("/", tags=["System"])
@@ -108,7 +116,7 @@ async def health_check():
         "simulation_running": simulation_engine.is_running,
         "ml_model_loaded": eta_service.is_ml_available(),
         "database_ok": True,
-        "active_trains": 10,  # Will be updated when train count is dynamic
+        "active_trains": 10,
         "last_update": datetime.now(timezone.utc).isoformat(),
     }
 
