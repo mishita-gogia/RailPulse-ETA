@@ -17,6 +17,16 @@ class Settings:
         "sqlite+aiosqlite:///./railpulse.db"
     )
 
+    # MongoDB — used ONLY for auth (Control Room + Passenger accounts).
+    # All other app data stays on the existing SQLite/SQLAlchemy stack.
+    MONGODB_URI: str = os.getenv("MONGODB_URI", "")
+    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "railpulse_auth")
+
+    # Auth
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-only-insecure-secret-change-me")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
+
     # Simulation
     SIMULATION_INTERVAL: int = int(os.getenv("SIMULATION_INTERVAL", "3"))
 
