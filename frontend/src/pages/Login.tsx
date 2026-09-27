@@ -24,7 +24,13 @@ const Login = () => {
         ? await controlRoomLogin(username, password)
         : await passengerLogin(phoneNumber, trainNumber);
 
-      login(response);
+      const currentUser = await import('../services/authApi').then(({ getCurrentUser }) =>
+        getCurrentUser(response.access_token)
+      );
+      login({
+        ...response,
+        preferred_train_number: currentUser.preferred_train_number,
+      });
       navigate(response.role === 'passenger' ? '/passenger' : '/', { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Login failed. Please try again.');
