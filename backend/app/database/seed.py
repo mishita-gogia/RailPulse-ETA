@@ -10,6 +10,10 @@ from app.models.database_models import (
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "seed")
 
+# Bulk real-train master import is intentionally opt-in. On small Render
+# instances it can make startup exceed the available memory/time.
+REAL_TRAIN_IMPORT_ENABLED = os.getenv("REAL_TRAIN_IMPORT_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
 
 def _load_json(filename: str):
     filepath = os.path.join(DATA_DIR, filename)
@@ -29,9 +33,11 @@ async def seed_db():
             # Check if real trains are seeded
             from app.models.database_models import RealTrain
             rt_res = await session.execute(select(func.count()).select_from(RealTrain))
-            if not rt_res.scalar():
+            if not rt_res.scalar() and REAL_TRAIN_IMPORT_ENABLED:
                 from scripts.import_real_train_data import run_import
                 await run_import()
+            elif not rt_res.scalar():
+                print("[Seed] Real train master import disabled. Set REAL_TRAIN_IMPORT_ENABLED=true to enable it.")
             return
 
         print("Seeding database...")
@@ -135,17 +141,20 @@ async def seed_db():
         await session.commit()
         print("Database seeding complete!")
 
-        # --- Import real train master data (zero-cost NTES/DataMeet) ---
-        try:
-            from app.models.database_models import RealTrain
-            async with async_session_maker() as check_session:
-                rt_res = await check_session.execute(select(func.count()).select_from(RealTrain))
-                if not rt_res.scalar():
-                    from scripts.import_real_train_data import run_import
-                    await run_import()
-                    print("[Seed] Real train master data imported.")
-        except Exception as e:
-            print(f"[Seed] Real train import skipped: {e}")
+        # --- Optional real train master data import (zero-cost NTES/DataMeet) ---
+        if REAL_TRAIN_IMPORT_ENABLED:
+            try:
+                from app.models.database_models import RealTrain
+                async with async_session_maker() as check_session:
+                    rt_res = await check_session.execute(select(func.count()).select_from(RealTrain))
+                    if not rt_res.scalar():
+                        from scripts.import_real_train_data import run_import
+                        await run_import()
+                        print("[Seed] Real train master data imported.")
+            except Exception as e:
+                print(f"[Seed] Real train import skipped: {e}")
+        else:
+            print("[Seed] Real train master import disabled.")
 
 
 async def _create_initial_positions(session):
