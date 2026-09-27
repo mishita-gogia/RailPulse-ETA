@@ -15,19 +15,26 @@ from sqlalchemy import select
 from app.database.db import async_session_maker
 from app.models.database_models import ETAPrediction, TrainPosition, RouteStop, Train
 
-# Import ML predictor with fallback
+# Import ML predictor only when explicitly enabled.
+# This keeps the Render Free (512 MB) deployment lightweight while preserving
+# the full ML predictor for local/development runs.
 _predictor = None
-try:
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from ml.predict import ETAPredictor
-    model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ml', 'model', 'eta_model.joblib')
-    _predictor = ETAPredictor(model_path)
-    if _predictor.is_model_loaded():
-        print("[ETA Service] ML model loaded successfully.")
-    else:
-        print("[ETA Service] ML model not found. Using fallback predictions.")
-except Exception as e:
-    print(f"[ETA Service] ML predictor not available: {e}. Using fallback.")
+ML_ENABLED = os.getenv("ML_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+if ML_ENABLED:
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        from ml.predict import ETAPredictor
+        model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ml', 'model', 'eta_model.joblib')
+        _predictor = ETAPredictor(model_path)
+        if _predictor.is_model_loaded():
+            print("[ETA Service] ML model loaded successfully.")
+        else:
+            print("[ETA Service] ML model not found. Using fallback predictions.")
+    except Exception as e:
+        print(f"[ETA Service] ML predictor not available: {e}. Using fallback.")
+else:
+    print("[ETA Service] ML disabled by ML_ENABLED. Using fallback predictions.")
 
 
 class ETAService:
