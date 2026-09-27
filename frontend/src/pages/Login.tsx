@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Train } from 'lucide-react';
-import { controlRoomLogin, passengerLogin } from '../services/authApi';
+import { controlRoomLogin, passengerLogin, getCurrentUser } from '../services/authApi';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -24,9 +24,7 @@ const Login = () => {
         ? await controlRoomLogin(username, password)
         : await passengerLogin(phoneNumber, trainNumber);
 
-      const currentUser = await import('../services/authApi').then(({ getCurrentUser }) =>
-        getCurrentUser(response.access_token)
-      );
+      const currentUser = await getCurrentUser(response.access_token);
       login({
         ...response,
         preferred_train_number: currentUser.preferred_train_number,
