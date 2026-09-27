@@ -6,6 +6,7 @@ Run from the backend directory with MONGODB_URI configured:
 
 import asyncio
 import getpass
+from datetime import datetime, timezone
 
 from app.database.mongo import close_mongo_connection, connect_to_mongo, get_mongo_db
 from app.services.auth_service import auth_service
@@ -33,7 +34,7 @@ async def main() -> None:
                 "username": username,
                 "hashed_password": auth_service.hash_password(password),
                 "full_name": full_name,
-                "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+                "created_at": datetime.now(timezone.utc),
             }
         )
         print(f"Created Control Room user: {username}")
